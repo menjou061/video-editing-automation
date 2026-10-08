@@ -1,6 +1,5 @@
 # Video editing automation packages
 
-This repository distributes only the versioned Doubao/Jianying video
 automation package. It is separate from the personal Codex skills repository.
 
 | Package | Orchestrator / editor | Visual rules | Artifact status |
