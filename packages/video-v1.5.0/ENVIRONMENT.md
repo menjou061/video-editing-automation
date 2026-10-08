@@ -16,10 +16,17 @@ The release has no embedded credentials or host paths. A deployment may set:
 
 | Variable | Purpose |
 | --- | --- |
-| `JY_PIPE_ROOT` | pipeline working root |
-| `JY_WORK_ROOT` | task work directory |
+| `JY_PIPE_ROOT` | deployed package/code root; Python tools and policies resolve from here |
+| `JY_WORK_ROOT` | task work directory, shared by JyPoll, JyRun, and the Python worker |
+| `JY_STATE_ROOT` | JyPoll/JyRun lock and processed-state directory |
+| `JY_LOG_ROOT` | JyPoll/JyRun log directory |
+| `JY_CONFIG_ROOT` | external machine configuration directory; defaults to `<JY_PIPE_ROOT>\config` |
+| `JY_ENV_CONFIG_PATH` | optional external JSON profile with an `environment` object of `JY_*` and `LARK_*` settings |
+| `JY_NAS_SECRET_FILE` | optional path to the Windows CurrentUser-DPAPI encrypted NAS password |
 | `JY_SKILL_ROOT` | deployed orchestrator/editor skill root |
 | `JY_DRAFT_ROOT` | local Jianying drafts root |
+| `JY_DRAFT_QC_SCRIPT` | machine-supplied independent `draft_visual_qc.py`; missing helper blocks generation |
+| `JY_VOICE_CATALOG_ROOT` | optional externally provisioned voice catalog; only licensed catalogs may be used |
 | `JY_NAS_SHARE` | NAS share used by the distributor |
 | `JY_NAS_USER` | NAS account name |
 | `NAS_PASSWORD` | NAS password, process environment only |
@@ -36,6 +43,19 @@ The release has no embedded credentials or host paths. A deployment may set:
 
 Missing credentials or deployment roots must stop the queue and yield a
 bounded failure; do not add fallbacks containing real host values.
+
+Both scheduled entrypoints load the external runtime profile at process start.
+JyPoll and JyRun must use the same Windows task identity that encrypted
+`nas-password.dpapi`; the password is decrypted into that process only and is
+never written to the ZIP or log. Do not put `NAS_PASSWORD` in `runtime.json`.
+Keep external config ACLs restricted to the renderer service account and
+operators. `JY_PIPE_ROOT` selects code; `JY_WORK_ROOT` selects task data, so
+changing the data root does not redirect policy or tool lookup.
+
+The package deliberately does not contain `draft_visual_qc.py` because its
+source and redistribution permission have not been established. Until the
+renderer supplies the independently maintained helper, package preflight must
+report `DRAFT_VISUAL_QC_MISSING` and production generation remains blocked.
 
 `JY_PRODUCT_IDENTITY_FILE` can bind one confirmed single-SKU source directory
 for all tasks using it; `records` may override an exception:

@@ -1,10 +1,8 @@
-# 豆包与剪映自动化工具包
+# 剪映自动化工具包
 
 面向视频生产团队的豆包与剪映自动化工具包。仓库按版本保存任务编排脚本、剪映工程辅助工具、视觉规则、环境说明和测试，便于团队阅读、评估、交接与下载。
 
-> **部署平台：Windows 渲染机。** 版本包的生产队列和剪映运行环境部署在 Windows；macOS 仅作为独立人工复核端，Linux 不支持运行本工具包。
-
-> 当前候选版本：**工具包 v1.5.0**；编排器与剪映组件为 **1.5.0**，视觉规则为 **1.4.1**。Windows 环境说明修正版见预发布 `video-v1.5.0-winrc2`；原候选包保留作归档。1.4.0 保留为历史版本归档。候选包和测试结果不代表渲染机已经升级或生产验收完成。
+> 当前候选版本：**工具包 v1.5.0**；编排器与剪映组件为 **1.5.0**，视觉规则为 **1.4.1**。1.4.0 保留为历史版本归档。仓库中的候选包和测试结果不代表渲染机已经升级或生产验收完成。
 
 ## 下载与校验
 
@@ -13,24 +11,12 @@
 3. 将 ZIP 和校验文件放在同一目录，先验证文件完整性，再解压阅读或部署。
 4. 部署前阅读该版本的 `ENVIRONMENT.md`、`RULES.md` 和 `README.md`，按目标机器准备环境与配置。
 
-在 Windows PowerShell 中，将 ZIP 和校验文件放在同一目录后执行：
-
-```powershell
-$sumFile = '.\SHA256SUMS-video-v1.5.0-winrc2.txt'
-$line = (Get-Content -LiteralPath $sumFile -Raw).Trim()
-$expected, $zipName = $line -split '\s+', 2
-$zipPath = Join-Path $PWD $zipName.TrimStart('*')
-$actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-if ($actual -ne $expected) { throw "SHA-256 不匹配：$zipPath" }
-Write-Host "SHA-256 校验通过：$zipName"
-```
-
-校验 v1.4.0 时，将 `$sumFile` 改为 `'.\SHA256SUMS-video-v1.4.0.txt'`。也可以直接浏览 [`packages/`](packages/) 中的对应版本源码。以上命令只校验下载完整性，不代表包可以在当前校验设备上部署。
+校验 v1.4.0 时，将清单文件名替换为 `SHA256SUMS-video-v1.4.0.txt`。也可以直接浏览 [`packages/`](packages/) 中的对应版本源码。
 
 ## 使用流程
 
 1. 根据版本表和 [`docs/RELEASES.md`](docs/RELEASES.md) 确认版本、来源和发布状态。
-2. 阅读版本目录中的环境约定、规则及编排器说明；v1.5.0 的生产运行环境固定为 Windows 渲染机。
+2. 阅读版本目录中的环境约定、规则及编排器说明，确认操作系统、运行依赖和所需路径。
 3. 在渲染环境配置访问凭据与机器路径；这类配置不随源码包提供，也不要提交到仓库。
 4. 先运行该版本的自动化测试，再按部署流程进行真实任务观察和人工验收。
 

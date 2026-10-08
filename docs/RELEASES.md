@@ -30,3 +30,19 @@
 
 Checksum files are stored under `releases/` and attached to the matching
 GitHub Release alongside each ZIP.
+
+## 1.5.0 compatibility source revision (2026-10-08)
+
+- The current `packages/video-v1.5.0/` source contains the reviewed Windows
+  configuration, 1.4.1 compatibility, guarded timing, and isolated legacy-state
+  migration changes. Component versions remain 1.5.0; visual policy remains
+  1.4.1. See the [compatibility assessment](../packages/video-v1.5.0/COMPATIBILITY_REVIEW.md).
+- Source validation: 39 package tests and 210 orchestrator tests passed,
+  including a repeat run from an independently extracted candidate ZIP.
+  The source manifest and checksum file cover this source revision.
+- This source PR does not replace the original or `video-v1.5.0-winrc2` release
+  assets. The 120-entry counts and ZIP checksums above describe those historical
+  artifacts, not the newer source tree.
+- Windows PowerShell, scheduler-account DPAPI, the independent QC helper, and
+  two real task observations still require deployment acceptance. Candidate
+  source validation does not assert that the renderer has been upgraded.

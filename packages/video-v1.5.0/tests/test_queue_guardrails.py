@@ -38,6 +38,28 @@ class QueueGuardrailTests(unittest.TestCase):
         self.assertIn("REVIEW_RETRY_READY", poll)
         self.assertLess(poll.index("REVIEW_RETRY_READY"), poll.index("# ---- 读飞书"))
 
+    def test_scheduled_entrypoints_load_external_config_and_share_data_roots(self):
+        poll = (ROOT / "jy_poll.ps1").read_text(encoding="utf-8-sig")
+        runner = (ROOT / "run_task.template.ps1").read_text(encoding="utf-8-sig")
+        worker = (ROOT / "batch_worker.py").read_text(encoding="utf-8")
+        loader = (ROOT / "tools" / "load-runtime-config.ps1").read_text(encoding="utf-8")
+        self.assertIn("load-runtime-config.ps1", poll)
+        self.assertIn("load-runtime-config.ps1", runner)
+        self.assertIn("JY_WORK_ROOT", poll)
+        self.assertIn("JY_WORK_ROOT", runner)
+        self.assertIn("JY_STATE_ROOT", runner)
+        self.assertIn("JY_LOG_ROOT", poll)
+        self.assertIn("PIPE = PIPE_ROOT", worker)
+        self.assertIn('read_text(encoding="utf-8-sig")', worker)
+        self.assertIn("ConvertTo-SecureString $cipher", loader)
+        self.assertNotIn("$profile =", loader)
+
+    def test_missing_material_is_deferred_without_a_generation_attempt(self):
+        worker = (ROOT / "batch_worker.py").read_text(encoding="utf-8")
+        self.assertIn('reason="material_dir_unavailable"', worker)
+        self.assertIn('"deferred_reason": reason', worker)
+        self.assertIn('if preflight.get("missing_material"):', worker)
+
 
 if __name__ == "__main__":
     unittest.main()

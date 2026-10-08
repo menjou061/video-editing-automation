@@ -46,15 +46,15 @@ class Release140ContractTests(unittest.TestCase):
     def test_deployment_target_is_windows_not_macos_or_linux(self):
         package = json.loads((ROOT / "SKILL_PACKAGE.json").read_text(encoding="utf-8"))
         environment = (ROOT / "ENVIRONMENT.md").read_text(encoding="utf-8")
-        repository_readme = (ROOT.parents[1] / "README.md").read_text(encoding="utf-8")
+        package_readme = (ROOT / "README.md").read_text(encoding="utf-8")
         normalized_environment = " ".join(environment.split())
 
         self.assertEqual(package["runtime"], "windows")
         self.assertIn("Windows rendering machine", normalized_environment)
         self.assertIn("Linux is unsupported", normalized_environment)
-        self.assertIn("Windows 渲染机", repository_readme)
-        self.assertIn("Windows PowerShell", repository_readme)
-        self.assertNotIn("macOS 和 Linux 可在下载目录中执行", repository_readme)
+        self.assertIn("Windows rendering machine", " ".join(package_readme.split()))
+        self.assertIn("Windows PowerShell", package_readme)
+        self.assertNotIn("macOS 和 Linux 可在下载目录中执行", package_readme)
 
     def test_credentials_are_environment_bound(self):
         paths = [

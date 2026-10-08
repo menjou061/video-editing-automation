@@ -4,10 +4,18 @@
 $ErrorActionPreference = 'Continue'
 $PIPE  = [Environment]::GetEnvironmentVariable('JY_PIPE_ROOT', 'Process')
 if ([string]::IsNullOrWhiteSpace($PIPE)) { $PIPE = $PSScriptRoot }
+$configLoader = Join-Path $PIPE 'tools\load-runtime-config.ps1'
+if (Test-Path -LiteralPath $configLoader) { & $configLoader -PackageRoot $PIPE | Out-Null }
+$configuredPipe = [Environment]::GetEnvironmentVariable('JY_PIPE_ROOT', 'Process')
+if (-not [string]::IsNullOrWhiteSpace($configuredPipe)) { $PIPE = $configuredPipe }
 $SkillRoot = [Environment]::GetEnvironmentVariable('JY_SKILL_ROOT', 'Process')
-$WORK  = Join-Path $PIPE 'work'
-$STATE = Join-Path $PIPE 'state'
-$LOG   = Join-Path $PIPE 'logs'
+if ([string]::IsNullOrWhiteSpace($SkillRoot)) { $SkillRoot = Join-Path $PIPE 'doubao-jianying-orchestrator' }
+$WORK = [Environment]::GetEnvironmentVariable('JY_WORK_ROOT', 'Process')
+if ([string]::IsNullOrWhiteSpace($WORK)) { $WORK = Join-Path $PIPE 'work' }
+$STATE = [Environment]::GetEnvironmentVariable('JY_STATE_ROOT', 'Process')
+if ([string]::IsNullOrWhiteSpace($STATE)) { $STATE = Join-Path $PIPE 'state' }
+$LOG = [Environment]::GetEnvironmentVariable('JY_LOG_ROOT', 'Process')
+if ([string]::IsNullOrWhiteSpace($LOG)) { $LOG = Join-Path $PIPE 'logs' }
 $TOOLS = Join-Path $PIPE 'tools'
 
 function Out-Log($m) {
@@ -16,6 +24,10 @@ function Out-Log($m) {
 }
 
 New-Item -ItemType Directory -Path $WORK, $STATE, $LOG -Force | Out-Null
+$env:JY_PIPE_ROOT = $PIPE
+$env:JY_WORK_ROOT = $WORK
+$env:JY_STATE_ROOT = $STATE
+$env:JY_LOG_ROOT = $LOG
 $LarkBaseToken = [Environment]::GetEnvironmentVariable('LARK_BASE_TOKEN', 'Process')
 $LarkTableId = [Environment]::GetEnvironmentVariable('LARK_TABLE_ID', 'Process')
 $NasPassword = [Environment]::GetEnvironmentVariable('NAS_PASSWORD', 'Process')

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import functools
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,10 @@ from .platform_env import find_jianying_editor_root
 # 同时给出比官方 name_hint 更准确、可直接用于相关性匹配的中文名（官方名有“熊二/小孩”等歧义）。
 VALIDATED_META: dict[str, tuple[str, str]] = {
     "zh_male_huoli": ("阳光活力男声", "male"),
+    # Historical operator label retained from the 1.4.1 Windows package.
+    # Explicit resolution is allowed; the role remains excluded from generic
+    # recommendation unless the script specifically calls for a character.
+    "zh_male_sunwukong_clone2": ("猴哥", "male"),
     "zh_male_xionger_stream_gpu": ("亲和暖男声", "male"),
     "zh_male_shaonianzixin_moon_bigtts": ("清透少年音", "male"),
     "ICL_zh_male_qinggandiantai": ("磁性情感男声", "male"),
@@ -120,14 +125,22 @@ class LibraryVoice:
 
 
 def _csv_path() -> Optional[Path]:
-    p = find_jianying_editor_root() / "data" / "tts_speakers.csv"
+    p = _voice_data_root() / "tts_speakers.csv"
     return p if p.exists() else None
 
 
 def _catalog_path() -> Optional[Path]:
     """剪映官方音色表（界面显示名 -> sami speaker_id）。"""
-    p = find_jianying_editor_root() / "data" / "jianying_voice_catalog.csv"
+    p = _voice_data_root() / "jianying_voice_catalog.csv"
     return p if p.exists() else None
+
+
+def _voice_data_root() -> Path:
+    """Resolve machine-provided voice catalogs without bundling app data."""
+    configured = os.environ.get("JY_VOICE_CATALOG_ROOT", "").strip()
+    if configured:
+        return Path(configured).expanduser()
+    return find_jianying_editor_root() / "data"
 
 
 def _infer_gender(name: str, sid: str) -> str:

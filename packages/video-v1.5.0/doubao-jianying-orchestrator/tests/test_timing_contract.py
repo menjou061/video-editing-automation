@@ -1278,6 +1278,27 @@ class FallbackPoolTests(unittest.TestCase):
         self.assertEqual(res["visual_missing_count"], 1)
         self.assertEqual(res["degraded_count"], 0)
 
+    def test_cta_product_display_fallback_is_preview_only_and_degraded(self):
+        from orchestrator import shot_analyzer as sa
+        shots = [_fallback_shot(i, "product_display", "产品包装摆在木台上")
+                 for i in range(1, 5)]
+        preview = _fallback_manifest("现在下单，优惠囤货！", mode="preview")
+        preview["allow_ending_cta_product_display_fallback"] = True
+        preview_result = sa.match_manifest(preview, {"shots": shots, "semantic_matches": []})
+        picked = preview_result["segments"][0]
+        self.assertTrue(picked["cta_product_display_fallback"])
+        self.assertEqual(picked["selection_mode"], "cta_product_display_degraded")
+        self.assertTrue(picked["degraded_no_match"])
+        self.assertFalse(picked["cta_visual_evidence"]["ok"])
+        self.assertEqual(preview_result["manifest"]["visual_matching_governance"][
+            "ending_cta_product_display_fallback_preview_only"], True)
+
+        formal = _fallback_manifest("现在下单，优惠囤货！", mode="formal")
+        formal["allow_ending_cta_product_display_fallback"] = True
+        formal_result = sa.match_manifest(formal, {"shots": shots, "semantic_matches": []})
+        self.assertFalse(any(segment.get("cta_product_display_fallback", False)
+                             for segment in formal_result["segments"]))
+
     # ---- ② 收紧生效：全句卖点都要求直接证据时不拿包装展示充数 ----
     def test_restrict_fallback_prefers_demo_over_display(self):
         """「超薄」= C-THIN，`evidence_required=True` → `restrict_fallback` 为真。
