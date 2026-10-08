@@ -1,19 +1,57 @@
-# Video editing automation packages
+# 豆包与剪映自动化工具包
 
-automation package. It is separate from the personal Codex skills repository.
+面向视频生产团队的豆包与剪映自动化工具包。仓库按版本保存任务编排脚本、剪映工程辅助工具、视觉规则、环境说明和测试，便于团队阅读、评估、交接与下载。
 
-| Package | Orchestrator / editor | Visual rules | Artifact status |
-| --- | --- | --- | --- |
-| 1.4.0 | 1.4.0 | 1.4.0 | Historical package archive |
-| 1.5.0 | 1.5.0 | 1.4.1 | Candidate pre-release |
+> 当前候选版本：**工具包 v1.5.0**；编排器与剪映组件为 **1.5.0**，视觉规则为 **1.4.1**。1.4.0 保留为历史版本归档。仓库中的候选包和测试结果不代表渲染机已经升级或生产验收完成。
 
-Browse the readable sources under [`packages/`](packages/) or download the ZIP
-and matching SHA-256 file from the [GitHub Releases](https://github.com/menjou061/video-editing-automation/releases) page.
-The 1.4.0 ZIP was reconstructed from the `video-v1.4.0` source tag because no
-binary release asset existed there. The 1.5.0 ZIP is preserved byte-for-byte
-from the candidate package.
+## 下载与校验
 
-These archives do not assert that a renderer has been deployed or that a
-candidate has passed production acceptance. Check each package's `README.md`
-and `ENVIRONMENT.md` before use. Credentials, runtime roots, and machine
-configuration must be supplied by the deployment environment.
+1. 打开 [GitHub Releases](https://github.com/menjou061/video-editing-automation/releases)。
+2. 选择需要的版本，下载对应 ZIP 和 `SHA256SUMS` 校验文件。
+3. 将 ZIP 和校验文件放在同一目录，先验证文件完整性，再解压阅读或部署。
+4. 部署前阅读该版本的 `ENVIRONMENT.md`、`RULES.md` 和 `README.md`，按目标机器准备环境与配置。
+
+macOS 和 Linux 可在下载目录中执行：
+
+```bash
+# v1.5.0
+shasum -a 256 -c SHA256SUMS-video-v1.5.0.txt  # macOS
+sha256sum -c SHA256SUMS-video-v1.5.0.txt      # Linux
+```
+
+校验 v1.4.0 时，将清单文件名替换为 `SHA256SUMS-video-v1.4.0.txt`。也可以直接浏览 [`packages/`](packages/) 中的对应版本源码。
+
+## 使用流程
+
+1. 根据版本表和 [`docs/RELEASES.md`](docs/RELEASES.md) 确认版本、来源和发布状态。
+2. 阅读版本目录中的环境约定、规则及编排器说明，确认操作系统、运行依赖和所需路径。
+3. 在渲染环境配置访问凭据与机器路径；这类配置不随源码包提供，也不要提交到仓库。
+4. 先运行该版本的自动化测试，再按部署流程进行真实任务观察和人工验收。
+
+v1.5.0 仍是候选预发布版。不要覆盖正在运行的队列；真实任务观察和人工验收通过前，不应把候选版当作已上线版本。
+
+## 使用要求
+
+- 目标机器需满足对应版本 `ENVIRONMENT.md` 中列出的运行依赖。
+- 豆包、剪映及相关服务和素材路径需能从目标机器访问。
+- 将账号令牌、密码和机器专属路径保存在部署环境，不要写进源码或提交到 GitHub。
+- 使用前确认目标版本状态；下载、安装或测试通过都不能代替渲染机部署与生产验收。
+
+## 项目结构
+
+- `packages/video-v1.4.0/`：1.4.0 历史源码包。
+- `packages/video-v1.5.0/`：1.5.0 候选源码包。
+- `docs/RELEASES.md`：版本来源、测试结果和归档说明。
+- `releases/`：各版本 ZIP 对应的 SHA-256 清单。
+- 每个版本包中的 `doubao-jianying-orchestrator/`、`jianying-editor/`、`tools/` 和 `tests/`：任务编排、剪映辅助、配套工具及测试。
+
+## 版本记录
+
+| 版本 | 组件版本 | 说明 |
+|---|---|---|
+| **v1.5.0** | 工具包、编排器、剪映组件 1.5.0；视觉规则 1.4.1 | 候选预发布版，新增评估与队列保护、素材索引和跨机器审阅等配套能力；仍需真实任务观察和人工验收。 |
+| **v1.4.0** | 工具包、编排器、剪映组件及视觉规则均为 1.4.0 | 历史归档版。下载 ZIP 是根据对应源码标签重建的归档，不是当时留存的原始 ZIP。 |
+
+## 发布验收
+
+发布前应从下载 ZIP 全新解压，核对 SHA-256 与包内文件清单，并运行包测试和编排器测试。完成这些检查只说明源码包通过了对应验证；渲染机部署还需单独备份、升级、运行真实任务并完成验收。v1.5.0 的候选状态和观察门槛见其版本说明及 [`docs/RELEASES.md`](docs/RELEASES.md)。
