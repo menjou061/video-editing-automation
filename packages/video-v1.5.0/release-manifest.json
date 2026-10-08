@@ -10,11 +10,11 @@
   "files": [
     {
       "path": "ENVIRONMENT.md",
-      "sha256": "60c347f4d405f4b70094466e350297af71e4140df657dcc5e986c1c56b79839c"
+      "sha256": "65fb080b14f6706e327020bba6282afa5b37547747d044a2504b4bcb83790c62"
     },
     {
       "path": "README.md",
-      "sha256": "2befe6b1edf08ffe49d2a41e3e5e42d2e811845a02657d58fe346e4caff2221a"
+      "sha256": "5037ea128c3418f5be3f8bd8bee8c47ac403941d528451b737219373cd6e137f"
     },
     {
       "path": "RULES.md",
@@ -446,7 +446,7 @@
     },
     {
       "path": "tests/test_release_1_4_0.py",
-      "sha256": "30090b87d988b866589a1a968fb427aabaf82f4d35af30eae27afde5f81358a1"
+      "sha256": "8f2f9f24d27b9443a1e360fc84b3e3a097a943b62aa884968dca3bde801cef3d"
     },
     {
       "path": "tests/test_visual_governance_rules.py",
@@ -491,7 +491,7 @@
   ],
   "release_id": "video-v1.5.0",
   "schema_version": 1,
-  "source_sha256": "e4e71ea9480560791c2b8e9f59950ed5e75fad28d9d16144c280875ec72e061e",
+  "source_sha256": "0fc1a1f3201f468189d658da69e588b7756684aef52f84acaddd962d0fffdc4b",
   "tree_hash_algorithm": "video-release-tree-v1",
   "version": "1.5.0",
   "visual_policy_version": "1.4.1"

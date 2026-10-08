@@ -1,5 +1,10 @@
 # Video automation candidate v1.5.0
 
+Production deployment target: a Windows rendering machine. The package worker
+and production queue are not deployed on macOS or Linux. macOS is used only as a
+separate human-review endpoint when the review handoff is configured; Linux is
+unsupported.
+
 Default Eval mode is observation. Visual policy remains independently versioned
 at 1.4.1. Do not deploy over a running queue or publish release tags before the
 two-real-task rollout gate passes. See ../../docs/video-eval-v1.5.0.md.

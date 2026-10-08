@@ -1,4 +1,16 @@
-# Runtime environment contract
+# Windows runtime environment contract
+
+The v1.5.0 production worker and queue run on the Windows rendering machine.
+This source ZIP is not a macOS or Linux deployment package; Linux is
+unsupported. Deploy and configure the worker only in the Windows environment
+that has access to the Windows Jianying installation, source materials, draft
+root, and required services.
+
+The `JY_MAC_DRAFT_ROOT` and `JY_MAC_REVIEW_STAGE` settings below describe the
+separate human-review handoff: the first is the reviewer's Mac-side path and the
+second is the corresponding Windows-accessible staging path. They do not move
+the worker or production queue to macOS. A reviewed draft must still pass the
+configured human-acceptance gate before distribution.
 
 The release has no embedded credentials or host paths. A deployment may set:
 
