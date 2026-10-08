@@ -37,12 +37,17 @@ GitHub Release alongside each ZIP.
   configuration, 1.4.1 compatibility, guarded timing, and isolated legacy-state
   migration changes. Component versions remain 1.5.0; visual policy remains
   1.4.1. See the [compatibility assessment](../packages/video-v1.5.0/COMPATIBILITY_REVIEW.md).
-- Source validation: 39 package tests and 210 orchestrator tests passed,
+- Source validation including the bundled QC follow-up: 40 package tests and
+  227 orchestrator tests passed,
   including a repeat run from an independently extracted candidate ZIP.
   The source manifest and checksum file cover this source revision.
 - This source PR does not replace the original or `video-v1.5.0-winrc2` release
   assets. The 120-entry counts and ZIP checksums above describe those historical
   artifacts, not the newer source tree.
-- Windows PowerShell, scheduler-account DPAPI, the independent QC helper, and
-  two real task observations still require deployment acceptance. Candidate
+- The existing project QC helper is now included in the source package and
+  uses the packaged vision interface. FFmpeg extraction of synthetic media
+  passed; its model responses were simulated. Normal deployment does not
+  need a separate QC script download.
+- Windows PowerShell, scheduler-account DPAPI, the configured vision service,
+  and two real task observations still require deployment acceptance. Candidate
   source validation does not assert that the renderer has been upgraded.

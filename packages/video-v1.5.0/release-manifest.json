@@ -6,19 +6,19 @@
     "machine-specific paths",
     "knowledge-base bodies"
   ],
-  "file_count": 127,
+  "file_count": 130,
   "files": [
     {
       "path": "COMPATIBILITY_REVIEW.md",
-      "sha256": "fd3983bd29fdb262185dfd72e2139d297164a16b4763a56eebeaa703f54cce1d"
+      "sha256": "d763d2a878862074efc52f4054fc0907d7907af1eb1b87c7786a695d4cd5b12b"
     },
     {
       "path": "ENVIRONMENT.md",
-      "sha256": "ad76affbd88c4ca421f76fb3a28cf53744ef26baaf1911078e68c3a8243bfd1e"
+      "sha256": "37173aa304932d8688f8b4aabc2a7bcec6bac4fb3a7c1e578b15567d30a5c7b5"
     },
     {
       "path": "README.md",
-      "sha256": "775eb64422696be12e5d358d82d460fc4966fb49770962b71ab3d86b3dedb139"
+      "sha256": "4f0bd643bbc8ce440ee2d0c6040c2a377b0f1ee7c6d042f3833205f236704e9d"
     },
     {
       "path": "RULES.md",
@@ -91,6 +91,10 @@
     {
       "path": "doubao-jianying-orchestrator/orchestrator/draft_safety.py",
       "sha256": "03342a5d9f102f5b130c8f2492503144fd09c01accc1bfdc1fd3fd868d025879"
+    },
+    {
+      "path": "doubao-jianying-orchestrator/orchestrator/draft_visual_qc.py",
+      "sha256": "3c8dbe301a2ea5a2a2d94f9e2f1a3de5e22604457da662a25fa193d02a32c136"
     },
     {
       "path": "doubao-jianying-orchestrator/orchestrator/engine.py",
@@ -179,6 +183,10 @@
     {
       "path": "doubao-jianying-orchestrator/tests/test_compatibility_141.py",
       "sha256": "dd6ec71280c6ac877685a64cbe4b436890920469bb015cf78d7d2c6f37f7410a"
+    },
+    {
+      "path": "doubao-jianying-orchestrator/tests/test_draft_visual_qc.py",
+      "sha256": "3c7e8c9a47d7d6db14f29b6278da3d58a56b3fa34ad3e315859c984ec7ea7454"
     },
     {
       "path": "doubao-jianying-orchestrator/tests/test_task_control.py",
@@ -441,6 +449,10 @@
       "sha256": "1f01f0e78d327d823547ff6ee022a86fe3a05153f1f871a956dade81f8f0aa14"
     },
     {
+      "path": "tests/test_bundled_qc.py",
+      "sha256": "23811a20132876174fbf1ca8fd48d8fb07871bac17f964a6ce75852f87d54ca5"
+    },
+    {
       "path": "tests/test_eval_bootstrap.py",
       "sha256": "6f5361bcee2f3130330101fc412cba1cca676ec16d0587b5ce8ab41438ca227d"
     },
@@ -454,7 +466,7 @@
     },
     {
       "path": "tests/test_package_preflight.py",
-      "sha256": "0526d835ceda929e71b9d5a5cf536cbc6d9f26385b2f6e9a32332302d4ed1f71"
+      "sha256": "6b0d0ad3ceb02594ea765d70d8e70e1bd6b81b6c2e4dbb84e6734a590b206a69"
     },
     {
       "path": "tests/test_queue_guardrails.py",

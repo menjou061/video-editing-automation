@@ -26,8 +26,17 @@ must inject the environment variables documented in `ENVIRONMENT.md`.
 Before using a renderer, run `python tools/package_preflight.py --package-root .`
 from Windows PowerShell. A missing `draft_visual_qc.py`, a mismatched package
 identity, or a non-Windows host is a blocking result; offline package tests do
-not certify renderer readiness. The QC helper must be supplied by the machine
-deployment and can be located with `JY_DRAFT_QC_SCRIPT`.
+not certify renderer readiness. The QC helper is included at
+`doubao-jianying-orchestrator/orchestrator/draft_visual_qc.py`. An optional
+`JY_DRAFT_QC_SCRIPT` can select another maintained copy; normal deployment
+does not require a separate QC download.
+
+QC reads the generated draft and extracts fresh frames through FFmpeg, then
+uses the packaged `vision_analyzer` interface for a separate visual review.
+Configure `JY_FFMPEG` (or put FFmpeg on PATH) and the renderer's vision service.
+QC uses the same `JY_VISION_PROFILE` as the worker, defaulting to `volc`.
+Missing evidence or conflicting judgments remain uncertified; degraded and
+CTA fallback previews cannot become formal deliveries through QC.
 
 ## 1.4.1 state migration
 

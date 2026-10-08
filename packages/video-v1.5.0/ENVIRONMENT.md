@@ -25,7 +25,12 @@ The release has no embedded credentials or host paths. A deployment may set:
 | `JY_NAS_SECRET_FILE` | optional path to the Windows CurrentUser-DPAPI encrypted NAS password |
 | `JY_SKILL_ROOT` | deployed orchestrator/editor skill root |
 | `JY_DRAFT_ROOT` | local Jianying drafts root |
-| `JY_DRAFT_QC_SCRIPT` | machine-supplied independent `draft_visual_qc.py`; missing helper blocks generation |
+| `JY_DRAFT_QC_SCRIPT` | optional override of the included `doubao-jianying-orchestrator/orchestrator/draft_visual_qc.py`; an unavailable selected script blocks generation |
+| `JY_FFMPEG` | FFmpeg executable for fresh QC frame extraction; defaults to FFmpeg on PATH |
+| `JY_VISION_PROFILE` | vision-service profile used by both the worker and QC; defaults to `volc` |
+| `JY_VISION_TRANSPORT` | configured vision adapter; the default uses Codex CLI, with existing Anthropic adapter support |
+| `JY_POST_QC_BATCH_CLAIMS` | claims per bounded visual-review batch; defaults to 4 |
+| `JY_POST_QC_TIMEOUT_S` | worker QC time budget in seconds; defaults to 90, with a 30-second minimum |
 | `JY_VOICE_CATALOG_ROOT` | optional externally provisioned voice catalog; only licensed catalogs may be used |
 | `JY_NAS_SHARE` | NAS share used by the distributor |
 | `JY_NAS_USER` | NAS account name |
@@ -52,10 +57,15 @@ Keep external config ACLs restricted to the renderer service account and
 operators. `JY_PIPE_ROOT` selects code; `JY_WORK_ROOT` selects task data, so
 changing the data root does not redirect policy or tool lookup.
 
-The package deliberately does not contain `draft_visual_qc.py` because its
-source and redistribution permission have not been established. Until the
-renderer supplies the independently maintained helper, package preflight must
-report `DRAFT_VISUAL_QC_MISSING` and production generation remains blocked.
+The package includes the project's existing `draft_visual_qc.py` and its
+`vision_analyzer` dependency. The helper performs a separate check after draft
+generation; it does not require a separate installation. Configure FFmpeg and
+the selected vision adapter on Windows. Vision-service authentication stays
+in the deployment environment and is not bundled in this ZIP. Missing frames,
+unavailable vision services, or incomplete judgments cannot produce QC PASS.
+Preview/degraded states remain preview-only even if the later model labels
+their visible frames DIRECT. Package preflight checks package files and the
+Windows host; actual service operation still requires renderer acceptance.
 
 `JY_PRODUCT_IDENTITY_FILE` can bind one confirmed single-SKU source directory
 for all tasks using it; `records` may override an exception:

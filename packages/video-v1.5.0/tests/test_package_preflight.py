@@ -12,12 +12,11 @@ from tools.package_preflight import run_preflight
 
 class PackagePreflightTests(unittest.TestCase):
     def test_complete_offline_source_can_pass_without_claiming_windows_acceptance(self):
-        with tempfile.TemporaryDirectory() as directory:
-            qc = Path(directory) / "draft_visual_qc.py"
-            qc.write_text("# external machine-supplied helper\n", encoding="utf-8")
-            result = run_preflight(ROOT, require_windows=False, draft_qc_script=qc)
+        result = run_preflight(ROOT, require_windows=False)
         self.assertTrue(result["ok"], result["blockers"])
         self.assertEqual(result["status"], "READY")
+        self.assertEqual(Path(result["draft_qc_script"]),
+                         ROOT / "doubao-jianying-orchestrator/orchestrator/draft_visual_qc.py")
 
     def test_missing_qc_helper_is_a_blocker_not_a_pass(self):
         result = run_preflight(ROOT, require_windows=False,
