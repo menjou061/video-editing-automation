@@ -6,6 +6,7 @@ automation package. It is separate from the personal Codex skills repository.
 | Package | Orchestrator / editor | Visual rules | Artifact status |
 | --- | --- | --- | --- |
 | 1.4.0 | 1.4.0 | 1.4.0 | Historical package archive |
+| 1.5.0 | 1.5.0 | 1.4.1 | Candidate pre-release |
 
 Browse the readable sources under [`packages/`](packages/) or download the ZIP
 and matching SHA-256 file from the [GitHub Releases](https://github.com/menjou061/video-editing-automation/releases) page.

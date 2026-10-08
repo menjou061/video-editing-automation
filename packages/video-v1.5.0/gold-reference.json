@@ -1,0 +1,94 @@
+{
+  "sample_slots": [
+    "video-01",
+    "video-02",
+    "video-03",
+    "video-04",
+    "video-05",
+    "video-06",
+    "video-07",
+    "video-08",
+    "video-09",
+    "video-10",
+    "video-11"
+  ],
+  "sources": [
+    {
+      "video_slot": "video-01",
+      "source_ref": "external://video-montage/video-01/20260924-232815.mp4",
+      "source_filename": "20260924-232815.mp4",
+      "source_sha256": "f1a02848d92c46252981ff8c2d6ea5116405ef214d90257edd16185b4211440b"
+    },
+    {
+      "video_slot": "video-02",
+      "source_ref": "external://video-montage/video-02/20260924-233028.mp4",
+      "source_filename": "20260924-233028.mp4",
+      "source_sha256": "98b2647c4eeda9d4f7043b089bc3d9632579d6ee9e442f724d9f2897a6aa049e"
+    },
+    {
+      "video_slot": "video-03",
+      "source_ref": "external://video-montage/video-03/20260924-233219.mp4",
+      "source_filename": "20260924-233219.mp4",
+      "source_sha256": "04ea3eb9e3d36ea690f80a690ff4a1d5636684e6b4f790a7abb991e83a0d4d97"
+    },
+    {
+      "video_slot": "video-04",
+      "source_ref": "external://video-montage/video-04/20260925-001755.mp4",
+      "source_filename": "20260925-001755.mp4",
+      "source_sha256": "6d684117bc5fc2767361dee6f05c9be9a8be3db81af280fe19c2a13de8bfaea5"
+    },
+    {
+      "video_slot": "video-05",
+      "source_ref": "external://video-montage/video-05/czh25101402 萌睡裤20片 安睡裤这种消耗品.mp4",
+      "source_filename": "czh25101402 萌睡裤20片 安睡裤这种消耗品.mp4",
+      "source_sha256": "53eaae37b7684aa2b95085fd7ae57a819df7861af1ed5ca0e2243ef8ec93d3ab"
+    },
+    {
+      "video_slot": "video-06",
+      "source_ref": "external://video-montage/video-06/czh25122202 萌动裤 不用脱裤子.mp4",
+      "source_filename": "czh25122202 萌动裤 不用脱裤子.mp4",
+      "source_sha256": "8205b7f6d3cb87570e7bcd24f39cbcd257a1c547dbae3747f5bbedc79e776204"
+    },
+    {
+      "video_slot": "video-07",
+      "source_ref": "external://video-montage/video-07/czh26070708 小暖心裤 家里女儿.mp4",
+      "source_filename": "czh26070708 小暖心裤 家里女儿.mp4",
+      "source_sha256": "36e7fcfb7a2ca8fcc04020f8d5b5fb88ab90563a6a112953275b111430b98149"
+    },
+    {
+      "video_slot": "video-08",
+      "source_ref": "external://video-montage/video-08/czh26082606 萌睡裤 种草.mp4",
+      "source_filename": "czh26082606 萌睡裤 种草.mp4",
+      "source_sha256": "38e681a5517722caae25530272c5603751b393e53f8a125dd67612ebf7a86aac"
+    },
+    {
+      "video_slot": "video-09",
+      "source_ref": "external://video-montage/video-09/zhy25092210-小马宝莉-谁懂啊用一次就会爱上.mp4",
+      "source_filename": "zhy25092210-小马宝莉-谁懂啊用一次就会爱上.mp4",
+      "source_sha256": "7f488b9c13eafc9e46bfd388ddc0bfc77516b26d03142aaafcc7ed6686ad6232"
+    },
+    {
+      "video_slot": "video-10",
+      "source_ref": "external://video-montage/video-10/zhy25093006-小马宝莉-asmr.mp4",
+      "source_filename": "zhy25093006-小马宝莉-asmr.mp4",
+      "source_sha256": "e05b5856c77811c61008a659abe3488ae2ffb4a21c7ef9b871d4c0999aa174ad"
+    },
+    {
+      "video_slot": "video-11",
+      "source_ref": "external://video-montage/video-11/zhy260715-抱抱2-我的天.mp4",
+      "source_filename": "zhy260715-抱抱2-我的天.mp4",
+      "source_sha256": "7a6e0ac524c0d7d1642b5016edde39feabb9eb0148bd8711e19b1829efbb7a5c"
+    }
+  ],
+  "comparison_dimensions": [
+    "visual_match_and_product_identity",
+    "claim_evidence_coverage",
+    "shot_structure_and_rhythm",
+    "subtitle_layout_and_readability",
+    "audio_timing_and_loudness",
+    "draft_editability_and_delivery"
+  ],
+  "sha256": "d3637e3bc1226a2607847f5fa76cc977f0434b04ceffc3ee9061b62dd6a82312",
+  "pack_id": "video-montage-gold-v1.2",
+  "quality_completion": "FULL_PLAYBACK_REVIEW_PENDING"
+}

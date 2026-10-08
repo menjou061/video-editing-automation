@@ -1,0 +1,157 @@
+{
+  "policy_id": "windows-video-closed-loop-20260930",
+  "policy_version": "1.4.1",
+  "video_tool_version": "1.5.0",
+  "visual_policy_version": "1.4.1",
+  "effective_date": "2026-09-30",
+  "source": "user-confirmed-manual-rules-2026-09-29-2026-09-30",
+  "task_filter": {
+    "initial": {
+      "task_status": "待完成",
+      "required": ["脚本文案", "分镜素材"],
+      "exclude_film_status": ["验收通过", "已二次修改"]
+    },
+    "revision": {
+      "task_status": "已完成",
+      "required": ["脚本文案", "分镜素材", "问题反馈", "草稿文件"],
+      "include_when_film_status_not_in": ["验收通过", "已二次修改"],
+      "issue_is_operator_source_of_truth": true
+    },
+    "never_auto_process": ["验收通过", "已二次修改"]
+  },
+  "matching": {
+    "candidate_pool": "scan_all_current_product_candidates",
+    "max_final_materials": 24,
+    "max_is_not_fixed_count": true,
+    "clip_count": "derive_from_script_information_and_valid_matches",
+    "selection_order": ["DIRECT", "ACCEPTABLE_DEGRADED", "MATERIAL_GAP"],
+    "degraded_never_steals_direct": true,
+    "source_window_must_cover_evidence": true,
+    "intentional_gap_target": {"recommended_max": 3, "hard_cap": 3, "overflow_requires_audit": true},
+    "same_script_variants": {
+      "must_be_visibly_different_when_scores_close": true,
+      "never_trade_match_quality_for_difference": true,
+      "variant_tie_break_fields": ["source_video", "shot_composition", "action_stage", "source_timerange", "semantic_role"]
+    },
+    "rework": {
+      "mismatch_is_segment_level_repair": true,
+      "reuse_cached_material_understanding": true,
+      "rerun_only_failed_segments_when_evidence_is_valid": true,
+      "no_silent_keep_of_failed_segment": true
+    }
+  },
+  "evidence_rules": {
+    "functional_claims": {
+      "require_action_or_result": true,
+      "generic_packaging_is_not_function_evidence": true,
+      "relevant_product_closeup_allowed_as_degraded": true,
+      "degraded_labels": ["PRODUCT_SELLING_POINT_CLOSEUP_DEGRADED", "PRODUCT_RESULT_CLOSEUP_DEGRADED"]
+    },
+    "packaging_claim_direct": {
+      "enabled": true,
+      "requires_explicit_gesture_or_action_pointing_to_readable_claim": true,
+      "script_claim_must_equal_pointed_claim": true,
+      "label": "PACKAGING_CLAIM_DIRECT",
+      "authenticity_not_verified": true,
+      "does_not_replace_function_action_result": true
+    },
+    "product_feature": {
+      "thin_dry_no_seep_absorb_soft_wet_claims": "prefer_relevant_product_part_or_action_result_closeup",
+      "do_not_use_beautiful_but_semantically_unrelated_shot": true
+    },
+    "cta": {
+      "claims": ["促销", "优惠", "到手", "划算", "囤货", "便宜又大碗", "值得闭眼囤"],
+      "prefer": ["multi_pack", "row_display", "carton", "stack", "visible_quantity"],
+      "single_pack_closeup_is_insufficient": true,
+      "no_matching_quantity_shot": "keep_voice_and_subtitle_and_record_MATERIAL_GAP",
+      "ending_product_closeup_forbidden_when_cta": true
+    },
+    "specific_claims": {
+      "quantity_capacity": "must_show_count_or_quantity_relation",
+      "one_sheet": "prefer_extract_or_unfold_single_sheet",
+      "thickness_structure": "prefer_paper_body_or_structure_closeup",
+      "fluorescent_free": "requires_real_detection_or_readable_specific_claim",
+      "soft_hydrated_skin_contact": "requires_contact_wipe_press_or_stretch_window"
+    }
+  },
+  "subtitle": {
+    "required_on_canvas": true,
+    "font_size": 8,
+    "font_weight": "bold",
+    "position": {"x": 0, "y": -0.8},
+    "must_be_visible": true,
+    "must_have_nonempty_text": true,
+    "out_of_canvas_is_fail": true,
+    "must_have_rendered_frame_evidence": true
+  },
+  "qc": {
+    "statuses": ["PASS", "PASS_WITH_DEGRADED", "PASS_WITH_GAPS", "FAIL", "UNCERTIFIED"],
+    "formal_delivery_requires": ["PASS"],
+    "preview_only": ["PASS_WITH_DEGRADED", "PASS_WITH_GAPS", "UNCERTIFIED"],
+    "hard_fail": ["FAIL"],
+    "machine_timeout_never_passes": true,
+    "old_start_without_terminal_is": "STALE_ORPHANED",
+    "done_json_beats_historical_start": true,
+    "required_evidence": ["draft_visual_qc.json", "evidence_frames", "match_report", "package_gate", "path_check", "subtitle_check", "audio_check"]
+  },
+  "delivery": {
+    "draft_package_must_include": ["draft_info.json", "media", "素材本地化修复.bat", "fix_local.ps1"],
+    "multi_draft_archive": {
+      "enabled": true,
+      "parent_folder_required_when_count_gt_1": true,
+      "subfolder_pattern": "版本1,版本2,...",
+      "table_draft_file_value": "parent_folder_only"
+    },
+    "mac_review_gate": {
+      "required_before_nas_and_table_write": true,
+      "approval_artifact": "mac_review_approved.json",
+      "uncertified_or_unreviewed_never_updates_table": true
+    },
+    "replacement": {
+      "new_package_must_pass_before_old_removed": true,
+      "replace_old_after_verified_delivery": true,
+      "never_delete_source_material": true
+    }
+  },
+  "table_write": {
+    "base_token_env": "LARK_BASE_TOKEN",
+    "table_id_env": "LARK_TABLE_ID",
+    "write_only_after_delivery_and_review": true,
+    "write_fields": ["草稿文件", "任务状态", "成片状态"],
+    "auto_updated_system_fields": ["更新时间"],
+    "revision_status": "已二次修改",
+    "initial_success_status": "未修改效果好",
+    "never_mark_success_for": ["FAIL", "UNCERTIFIED", "PASS_WITH_GAPS", "missing_qc", "missing_mac_review", "missing_bat_or_fix_local"]
+  },
+  "failure_notification": {
+    "enabled": true,
+    "channel": "feishu_base",
+    "write_fields": ["任务状态", "问题反馈"],
+    "task_status_field": "任务状态",
+    "task_status": "生成失败",
+    "feedback_field": "问题反馈",
+    "feedback_only_fallback": true,
+    "never_write_draft_path": true,
+    "never_write_success_status": true,
+    "local_receipt": "failure_notification_receipt.json",
+    "queue_behavior_on_write_failure": "record_and_continue"
+  },
+  "queue": {
+    "max_task_concurrency": 1,
+    "max_external_concurrency": 2,
+    "same_material_pool_is_serial": true,
+    "task_wall_clock_budget_seconds": 1200,
+    "per_draft_timeout_seconds": 1500,
+    "completed_drafts_checkpointed": true,
+    "deferred_draft_indices_required_on_timeout": true,
+    "release_queue_after_task_terminal": true,
+    "limited_retries_only": true,
+    "orphan_start_cannot_block_queue": true
+  },
+  "model_route": {
+    "preferred": ["qwen3.8-flash", "deepseek-flash", "glm-flash"],
+    "reuse_material_understanding_cache": true,
+    "provider_failure_is_not_visual_failure": true,
+    "provider_timeout_status": "UNCERTIFIED"
+  }
+}
