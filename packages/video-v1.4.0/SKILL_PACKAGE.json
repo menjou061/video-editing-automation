@@ -1,0 +1,15 @@
+{
+  "name": "doubao-jianying-skill-pack",
+  "version": "v1.4.0",
+  "version_policy": {
+    "major": "incompatible release +1",
+    "minor": "daily feature iteration +1",
+    "patch": "bug fix +1"
+  },
+  "components": [
+    "jianying-editor",
+    "doubao-jianying-orchestrator"
+  ],
+  "runtime": "windows",
+  "entrypoint": "doubao-jianying-orchestrator/run.py"
+}
