@@ -11,14 +11,6 @@
 3. 将 ZIP 和校验文件放在同一目录，先验证文件完整性，再解压阅读或部署。
 4. 部署前阅读该版本的 `ENVIRONMENT.md`、`RULES.md` 和 `README.md`，按目标机器准备环境与配置。
 
-macOS 和 Linux 可在下载目录中执行：
-
-```bash
-# v1.5.0
-shasum -a 256 -c SHA256SUMS-video-v1.5.0.txt  # macOS
-sha256sum -c SHA256SUMS-video-v1.5.0.txt      # Linux
-```
-
 校验 v1.4.0 时，将清单文件名替换为 `SHA256SUMS-video-v1.4.0.txt`。也可以直接浏览 [`packages/`](packages/) 中的对应版本源码。
 
 ## 使用流程
