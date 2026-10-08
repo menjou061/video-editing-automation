@@ -1392,8 +1392,12 @@ class OrchestrationEngine:
         ``transition_*_handle`` 是**转场把手**（转场要吃掉的那几帧），两者分开扣。
         """
         frm = int(self.m.get("fps", 0) or 0) or int(timing_contract.DEFAULT_FPS)
-        head_guard = timing_contract.us_of(self.m.get("head_trim_s"), 300_000)
-        tail_guard = timing_contract.us_of(self.m.get("tail_trim_s"), 200_000)
+        head_guard = (timing_contract.us_of(clip.head_waste, 0)
+                      if float(clip.head_waste or 0.0) > 0.0
+                      else timing_contract.us_of(self.m.get("head_trim_s"), 300_000))
+        tail_guard = (timing_contract.us_of(clip.tail_waste, 0)
+                      if float(clip.tail_waste or 0.0) > 0.0
+                      else timing_contract.us_of(self.m.get("tail_trim_s"), 200_000))
         tail_pad = timing_contract.us_of(self.m.get("tail_pad_s"), 120_000)
         span = self._evidence_span(clip)
         speed_min, speed_max = timing_contract.speed_range_for_role(

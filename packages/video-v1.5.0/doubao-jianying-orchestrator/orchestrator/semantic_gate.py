@@ -17,7 +17,7 @@ from typing import Any, Iterable
 # make the gate tolerant of normal wording while keeping the output stable.
 CLAIM_SYNONYMS: dict[str, tuple[str, ...]] = {
     "提数": ("提数", "数字", "数值", "计数", "测量", "数出来", "统计"),
-    "柔软": ("柔软", "柔韧", "软", "亲肤", "柔软亲肤"),
+    "柔软": ("柔软", "柔韧", "软", "亲肤", "柔软亲肤", "面层", "白色面层", "压纹"),
     "湿水不破": ("湿水不破", "遇水不破", "湿水", "不易破", "不容易破", "不破"),
     "吸水": ("吸水", "吸水性", "吸液", "吸得快"),
     "厚实": ("厚实", "加厚", "厚度", "厚"),

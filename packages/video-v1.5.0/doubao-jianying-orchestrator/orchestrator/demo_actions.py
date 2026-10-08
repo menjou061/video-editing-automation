@@ -28,7 +28,10 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
+from pathlib import Path
 from typing import Any
 
 # ── 角色与强度序 ──────────────────────────────────────────────────────
@@ -834,41 +837,115 @@ def visual_role(shot: dict[str, Any] | None) -> str:
     return _norm_role(shot or {})
 
 
-def gate_coverage(shots: list[dict[str, Any]]) -> dict[str, Any]:
-    """报告用：这一批分析有多少镜头带齐了新字段。
+def _load_closed_loop_policy() -> tuple[dict[str, Any] | None, str | None]:
+    """Load the Windows closed-loop policy and reject stale or malformed files."""
+    raw_path = os.environ.get("JY_CLOSED_LOOP_POLICY", "").strip()
+    if not raw_path:
+        return None, "RULEPACK_MISSING"
+    try:
+        policy = json.loads(Path(raw_path).read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None, "RULEPACK_INVALID"
+    if not isinstance(policy, dict):
+        return None, "RULEPACK_INVALID"
+    required = ("policy_id", "policy_version", "video_tool_version",
+                "visual_policy_version", "matching", "evidence_rules", "qc")
+    if any(not policy.get(key) for key in required):
+        return None, "RULEPACK_INVALID"
+    matching = policy.get("matching")
+    evidence = policy.get("evidence_rules")
+    qc = policy.get("qc")
+    if (not isinstance(matching, dict) or not isinstance(evidence, dict)
+            or not isinstance(qc, dict)
+            or not matching.get("candidate_pool")
+            or not matching.get("selection_order")
+            or not isinstance(evidence.get("functional_claims"), dict)
+            or not isinstance(evidence.get("cta"), dict)):
+        return None, "RULEPACK_INVALID"
+    try:
+        package_version = (Path(__file__).resolve().parents[1] / "VERSION").read_text(
+            encoding="utf-8-sig").strip()
+    except OSError:
+        return None, "RULEPACK_INVALID"
+    if (policy.get("video_tool_version") != package_version
+            or policy.get("policy_version") != policy.get("visual_policy_version")):
+        return None, "RULEPACK_VERSION_MISMATCH"
+    return policy, None
 
-    v1.3.27（用户定案第 10 条）：7A 规则包尚未落地，闸门实际处于
-    **未认证**状态，不能靠 `fully_gated` 那个数字冒充「全部通过」。实测口径：
-    上一轮 `fully_gated = 22/22` 看着满格，实际 11 句口播只有第 3 句命中 claim，
-    这不是闸门生效，是闸门空转。所以这里改用五个明确字段把状态说清楚：
 
-    - `fully_gated=False` —— 恒为布尔假，不再返回「看起来满格」的计数；
-    - `coverage_status="RULEPACK_MISSING"` —— 未生效的原因；
-    - `validation_passed=None` —— 未验证（不是「已验证通过」）；
-    - `certification="UNCERTIFIED"` —— 未认证；
-    - `uncertified_reasons=["RULEPACK_MISSING"]` —— 机读原因列表。
+def gate_coverage(shots: list[dict[str, Any]],
+                  evaluated_segments: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Report rulepack availability, metadata coverage and actual claim decisions.
 
-    各计数仍然原样保留，供诊断「字段补到什么程度了」。
+    Complete metadata is only coverage. A batch is certified only when each
+    selected segment carries a successful, gated claim decision; legacy
+    ``ungated`` results and degraded/preview segments remain uncertified.
     """
     total = len(shots)
     with_role = sum(1 for s in shots if _norm_role(s))
     with_subject = sum(1 for s in shots if _has_subject(s) is not None)
     with_action = sum(1 for s in shots if str(s.get("action") or "").strip())
     with_setup = sum(1 for s in shots if _setup_id(s) and _action_phase(s))
-    missing = ["RULEPACK_MISSING"]
-    return {
+    policy, policy_error = _load_closed_loop_policy()
+
+    def result(status: str, reason: str, validation: bool | None) -> dict[str, Any]:
+        return {
         "shots": total,
         "with_role": with_role,
         "with_has_subject": with_subject,
         "with_action": with_action,
         "with_setup_phase": with_setup,
         "fully_gated": False,
-        "coverage_status": "RULEPACK_MISSING",
-        "validation_passed": None,
+        "coverage_status": status,
+        "validation_passed": validation,
         "certification": "UNCERTIFIED",
-        "uncertified_reasons": missing,
-        "note": ("7A 规则包（fail-closed 语义 + 悬挂抽 CLAIMS）尚未落地，本批闸门处于"
-                 "未认证状态：未覆盖的镜头按旧行为放行，不得据此宣称质检通过。"
-                 "要拿到完整闸门效果需先发布规则包，再重跑视觉分析补 "
-                 "role/has_subject/action/setup_id/action_phase"),
+        "uncertified_reasons": [reason],
+        "policy_id": policy.get("policy_id") if policy else None,
+        "policy_version": policy.get("policy_version") if policy else None,
+        "note": "规则覆盖统计不能代替逐段 claim 证据判断；未通过的段落保持未认证",
+        }
+
+    if policy_error:
+        return result(policy_error, policy_error, None)
+    missing_fields: list[str] = []
+    if total == 0:
+        missing_fields.append("shots")
+    if with_role != total:
+        missing_fields.append("role")
+    if with_subject != total:
+        missing_fields.append("has_subject")
+    if with_action != total:
+        missing_fields.append("action")
+    if with_setup != total:
+        missing_fields.append("setup_id/action_phase")
+    if missing_fields:
+        reason = "GATE_FIELDS_MISSING:" + ",".join(missing_fields)
+        return result("FIELDS_INCOMPLETE", reason, False)
+
+    if not evaluated_segments:
+        return result("CLAIM_GATE_EVIDENCE_MISSING", "CLAIM_GATE_EVIDENCE_MISSING", None)
+    for segment in evaluated_segments:
+        gate = segment.get("claim_gate") if isinstance(segment, dict) else None
+        if (not isinstance(gate, dict) or gate.get("ok") is not True
+                or gate.get("status") not in {"ok", "no_claim"}
+                or segment.get("degraded_no_match")
+                or segment.get("cta_product_display_fallback")
+                or segment.get("preview_unresolved")
+                or segment.get("visual_missing")):
+            return result("CLAIM_EVIDENCE_UNCERTIFIED", "CLAIM_EVIDENCE_UNCERTIFIED", False)
+
+    return {
+        "shots": total,
+        "with_role": with_role,
+        "with_has_subject": with_subject,
+        "with_action": with_action,
+        "with_setup_phase": with_setup,
+        "fully_gated": True,
+        "coverage_status": "FULL",
+        "validation_passed": True,
+        "certification": "CERTIFIED",
+        "uncertified_reasons": [],
+        "policy_id": policy.get("policy_id"),
+        "policy_version": policy.get("policy_version"),
+        "note": "规则包已加载、镜头字段完整且所选段落均通过 claim 证据闸门",
     }

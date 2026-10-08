@@ -5,13 +5,26 @@ $ErrorActionPreference = 'Continue'
 $RID  = '__RECORD_ID__'
 $PIPE = [Environment]::GetEnvironmentVariable('JY_PIPE_ROOT', 'Process')
 if ([string]::IsNullOrWhiteSpace($PIPE)) { $PIPE = '__PIPE__' }
+$configLoader = Join-Path $PIPE 'tools\load-runtime-config.ps1'
+if (Test-Path -LiteralPath $configLoader) { & $configLoader -PackageRoot $PIPE | Out-Null }
+$configuredPipe = [Environment]::GetEnvironmentVariable('JY_PIPE_ROOT', 'Process')
+if (-not [string]::IsNullOrWhiteSpace($configuredPipe)) { $PIPE = $configuredPipe }
 $skillRoot = [Environment]::GetEnvironmentVariable('JY_SKILL_ROOT', 'Process')
 if ([string]::IsNullOrWhiteSpace($skillRoot)) { $skillRoot = Join-Path $PIPE 'doubao-jianying-orchestrator' }
 $draftRoot = [Environment]::GetEnvironmentVariable('JY_DRAFT_ROOT', 'Process')
 if ([string]::IsNullOrWhiteSpace($draftRoot)) { $draftRoot = Join-Path $PIPE 'drafts' }
-$WORK = Join-Path $PIPE 'work'
-$STATE = Join-Path $PIPE 'state'
-$LOGS = Join-Path $PIPE 'logs'
+$WORK = [Environment]::GetEnvironmentVariable('JY_WORK_ROOT', 'Process')
+if ([string]::IsNullOrWhiteSpace($WORK)) { $WORK = Join-Path $PIPE 'work' }
+$STATE = [Environment]::GetEnvironmentVariable('JY_STATE_ROOT', 'Process')
+if ([string]::IsNullOrWhiteSpace($STATE)) { $STATE = Join-Path $PIPE 'state' }
+$LOGS = [Environment]::GetEnvironmentVariable('JY_LOG_ROOT', 'Process')
+if ([string]::IsNullOrWhiteSpace($LOGS)) { $LOGS = Join-Path $PIPE 'logs' }
+$env:JY_PIPE_ROOT = $PIPE
+$env:JY_WORK_ROOT = $WORK
+$env:JY_STATE_ROOT = $STATE
+$env:JY_LOG_ROOT = $LOGS
+$env:JY_SKILL_ROOT = $skillRoot
+$env:JY_DRAFT_ROOT = $draftRoot
 $TASK = Join-Path $WORK (Join-Path $RID 'task.json')
 $PROC_FILE = Join-Path $STATE 'processed.json'   # 勿改名/勿加 $proc* 变量：PS 5.1 变量名大小写不敏感，$PROC 与 $proc 是同一个变量（1.0.3 血泪）
 $LOCK = Join-Path $STATE 'RUNNING.lock'
@@ -65,6 +78,10 @@ function Publish-FailureNotification($reason) {
 
 $netUseOk = $false
 try {
+  $preflightTool = Join-Path $PIPE 'tools\package_preflight.py'
+  if (!(Test-Path -LiteralPath $preflightTool)) { throw 'PACKAGE_PREFLIGHT_TOOL_MISSING' }
+  $preflightOutput = (& python $preflightTool --package-root $PIPE 2>&1 | Out-String)
+  if ($LASTEXITCODE -ne 0) { throw 'PACKAGE_PREFLIGHT_FAILED' }
   Set-Content -LiteralPath $LOCK -Value $RID -Encoding UTF8
   Out-Log 'RUN_START'
 

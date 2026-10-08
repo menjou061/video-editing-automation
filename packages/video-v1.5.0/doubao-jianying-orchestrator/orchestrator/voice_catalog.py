@@ -93,6 +93,8 @@ VOICE_ALIASES = {
     # 「熊二」是剪映「变声」面板里同一个音色的名字，文本朗读面板显示名为「憨熊」。
     # 运营与历史记录会用「熊二」，指向的确实是同一个 sami id（已试听确认）。
     "熊二": "zh_male_xionger_stream_gpu",
+    # The 1.4.1 package used this exact speaker id for the operator label.
+    "猴哥": "zh_male_sunwukong_clone2",
 }
 
 # 剧情关键词 → 偏好音色 key（命中越多越优先）

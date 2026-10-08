@@ -29,6 +29,7 @@ import time
 import traceback
 import uuid
 from tools import production_eval, material_index
+from tools.package_preflight import run_preflight as package_preflight
 from tools.delivery_identity import tree_identity
 
 try:
@@ -40,12 +41,14 @@ try:
 except (AttributeError, ValueError):
     pass
 
-PIPE_ROOT = pathlib.Path(os.environ.get("JY_PIPE_ROOT", pathlib.Path(__file__).resolve().parent))
-WORK = pathlib.Path(os.environ.get("JY_WORK_ROOT", str(PIPE_ROOT / "work")))
-SKILL = pathlib.Path(os.environ.get("JY_SKILL_ROOT", str(PIPE_ROOT / "doubao-jianying-orchestrator")))
-DRAFTS = pathlib.Path(os.environ.get("JY_DRAFT_ROOT", str(PIPE_ROOT / "drafts")))
+PACKAGE_ROOT = pathlib.Path(__file__).resolve().parent
+PIPE_ROOT = pathlib.Path(os.environ.get("JY_PIPE_ROOT", str(PACKAGE_ROOT))).expanduser().resolve()
+WORK = pathlib.Path(os.environ.get("JY_WORK_ROOT", str(PIPE_ROOT / "work"))).expanduser().resolve()
+SKILL = pathlib.Path(os.environ.get("JY_SKILL_ROOT", str(PIPE_ROOT / "doubao-jianying-orchestrator"))).expanduser().resolve()
+DRAFTS = pathlib.Path(os.environ.get("JY_DRAFT_ROOT", str(PIPE_ROOT / "drafts"))).expanduser().resolve()
 PY = os.environ.get("JY_PYTHON_EXE", sys.executable)
-POST_DRAFT_QC = SKILL / "orchestrator" / "draft_visual_qc.py"
+POST_DRAFT_QC = pathlib.Path(os.environ.get(
+    "JY_DRAFT_QC_SCRIPT", str(SKILL / "orchestrator" / "draft_visual_qc.py"))).expanduser()
 CAPACITY_PROFILE = pathlib.Path(os.environ.get("JY_CAPACITY_PROFILE", str(PIPE_ROOT / "host_capacity.json")))
 PROGRESS = WORK / "batch_progress.jsonl"
 STATUS_SNAPSHOT = WORK / "task_status_snapshot.json"
@@ -56,7 +59,7 @@ VIDEO_EXTS = (".mp4", ".mov", ".m4v")
 SKIP_SHIP = os.environ.get("JY_SKIP_SHIP", "").strip() == "1"
 _OUTPUT_LOCK = threading.Lock()
 ACTIVE_RECORD_ID = ""
-PIPE = WORK.parent
+PIPE = PIPE_ROOT
 CLOSED_LOOP_TOOL = PIPE / "tools" / "closed_loop.py"
 CLOSED_LOOP_POLICY = PIPE / "WINDOWS_VIDEO_CLOSED_LOOP_RULES_20260930.json"
 MAC_REVIEW_REQUIRED = os.environ.get("JY_MAC_REVIEW_REQUIRED", "1").strip() != "0"
@@ -233,7 +236,7 @@ def progress(entry: dict):
 
 def _read_json(path: pathlib.Path) -> dict:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
         return payload if isinstance(payload, dict) else {}
     except (OSError, ValueError, TypeError):
         return {}
@@ -1937,6 +1940,9 @@ def select_queue_for_single_run(queue: list[dict], *,
 def _queue_preflight(task: dict) -> dict:
     """Check static queue inputs before starting the selected task."""
     issues = []
+    deployment = package_preflight(PIPE_ROOT, require_windows=True,
+                                   draft_qc_script=POST_DRAFT_QC)
+    issues.extend(deployment.get("blockers", []))
     rid = str(task.get("record_id") or "").strip()
     if not rid:
         issues.append("record_id missing")
@@ -1945,9 +1951,12 @@ def _queue_preflight(task: dict) -> dict:
         issues.append("pipeline VERSION missing or unreadable")
     material_dir = str(task.get("material_dir") or "").strip()
     sources = []
+    missing_material = False
     if not material_dir:
+        missing_material = True
         issues.append("material_dir empty")
     elif not pathlib.Path(material_dir).is_dir():
+        missing_material = True
         issues.append("material_dir unavailable: %s" % material_dir)
     else:
         sources = video_files(material_dir)
@@ -1957,7 +1966,9 @@ def _queue_preflight(task: dict) -> dict:
         issues.append("draft root parent unavailable: %s" % DRAFTS.parent)
     if not str(task.get("script") or "").strip():
         issues.append("script empty")
-    return {"ok": not issues, "issues": issues, "source_count": len(sources)}
+    return {"ok": not issues, "issues": issues, "source_count": len(sources),
+            "missing_material": missing_material,
+            "deployment_preflight": deployment}
 
 
 def _record_queue_preflight_block(task: dict, prior: dict, preflight: dict) -> dict:
@@ -2035,9 +2046,14 @@ def _continuation_allowed(task: dict) -> tuple[bool, dict]:
     if not done_path.is_file():
         return True, {}
     try:
-        payload = json.loads(done_path.read_text(encoding="utf-8"))
+        payload = json.loads(done_path.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError, TypeError):
         return False, {"reason": "DONE_JSON_INVALID"}
+    if (str(payload.get("status") or "").upper() == "DEFERRED"
+            and payload.get("deferred_reason") == "material_dir_unavailable"):
+        # A missing-material deferral is not an attempt. Recheck it next time;
+        # when the material path becomes available the queued task may proceed.
+        return True, payload
     if bool(payload.get("safe_to_continue")) and payload.get("terminal_state") == "SUCCESS":
         task_log = str(payload.get("task_log") or "").strip()
         if task_log:
@@ -2062,8 +2078,8 @@ def _continuation_allowed(task: dict) -> tuple[bool, dict]:
     return explicit, payload
 
 
-def _mark_deferred(task: dict, prior: dict) -> dict:
-    """Record an explicit operator skip before selecting the next task."""
+def _mark_deferred(task: dict, prior: dict, *, reason: str = "operator_skip_current") -> dict:
+    """Record a no-attempt deferral without converting it into success."""
     rid = str(task.get("record_id") or "").strip()
     task_dir = WORK / rid
     task_dir.mkdir(parents=True, exist_ok=True)
@@ -2084,7 +2100,7 @@ def _mark_deferred(task: dict, prior: dict) -> dict:
         "parent_run_id": old_run_id,
         "pipeline_version": _pipeline_version(),
         "deferred_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "deferred_reason": "operator_skip_current",
+        "deferred_reason": reason,
         **contract,
     })
     (task_dir / "done.json").write_text(
@@ -2099,7 +2115,14 @@ def main():
     if not queue_path.exists():
         log("queue missing: %s" % queue_path)
         sys.exit(2)
-    all_tasks = json.loads(queue_path.read_text(encoding="utf-8"))
+    try:
+        all_tasks = json.loads(queue_path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError, TypeError) as exc:
+        log("QUEUE_JSON_INVALID %s" % type(exc).__name__)
+        sys.exit(2)
+    if not isinstance(all_tasks, list):
+        log("QUEUE_JSON_INVALID expected a JSON list")
+        sys.exit(2)
     target_id = os.environ.get("JY_TASK_RECORD_ID", "").strip()
     force_rebuild = os.environ.get("JY_TASK_FORCE_REBUILD", "").strip() == "1"
     skip_requested = os.environ.get("JY_TASK_SKIP_CURRENT", "").strip() == "1"
@@ -2153,12 +2176,38 @@ def main():
         log("QUEUE HOLD record_id=%s terminal_state=%s failure_class=%s; explicit retry/skip required" % (
             rid, hold.get("terminal_state"), hold.get("failure_class")))
         return
-    preflight = _queue_preflight(queue[0])
-    if not preflight.get("ok"):
-        _record_queue_preflight_block(queue[0], prior, preflight)
+    skipped_missing_material: set[str] = set()
+    while queue:
+        current = queue[0]
+        rid = str(current.get("record_id") or "").strip()
+        if rid in skipped_missing_material:
+            queue = []
+            break
+        allowed, prior = _continuation_allowed(current)
+        if not allowed:
+            progress({"record_id": rid, "event": "queue_hold",
+                      "reason": "previous task is not safe_to_continue",
+                      "safe_to_continue": False, "next_action": "manual_review"})
+            log("QUEUE HOLD record_id=%s; explicit retry/skip required" % rid)
+            return
+        preflight = _queue_preflight(current)
+        if preflight.get("missing_material"):
+            _mark_deferred(current, prior, reason="material_dir_unavailable")
+            if target_id:
+                log("QUEUE DEFERRED record_id=%s reason=material_dir_unavailable; no attempt started" % rid)
+                return
+            skipped_missing_material.add(rid)
+            remaining = [dict(item) for item in all_tasks
+                         if str(item.get("record_id") or "").strip() not in skipped_missing_material]
+            queue = select_queue_for_single_run(remaining)
+            continue
+        if not preflight.get("ok"):
+            _record_queue_preflight_block(current, prior, preflight)
+            return
+        _run_task(current)
+        log("BATCH FINISHED")
         return
-    _run_task(queue[0])
-    log("BATCH FINISHED")
+    log("QUEUE exhausted after deferring tasks with missing materials; no task attempt started")
 
 
 if __name__ == "__main__":

@@ -140,6 +140,16 @@ def _us(seconds: Any, default: float = 0.0) -> int:
     return int(round(_number(seconds, default) * timing_contract.US))
 
 
+def _shot_guards_us(shot: dict[str, Any], manifest: dict[str, Any]) -> tuple[int, int]:
+    """Use measured waste when present, otherwise the deployment defaults."""
+    head = _number(shot.get("head_waste"))
+    tail = _number(shot.get("tail_waste"))
+    return (
+        _us(head if head > 0 else manifest.get("head_trim_s"), DEFAULT_HEAD_TRIM_S),
+        _us(tail if tail > 0 else manifest.get("tail_trim_s"), DEFAULT_TAIL_TRIM_S),
+    )
+
+
 def candidate_window(shot: dict[str, Any], *, audio_duration_us: int,
                      manifest: dict[str, Any] | None = None,
                      time_sensitive: bool = False):
@@ -164,17 +174,84 @@ def candidate_window(shot: dict[str, Any], *, audio_duration_us: int,
     material_us = _number(shot.get("material_duration_us"))
     if material_us <= 1000:
         material_us = _us(shot.get("source_end"), _number(shot.get("source_start")))
-    return timing_contract.solve_window(timing_contract.WindowRequest(
+    head_guard_us, tail_guard_us = _shot_guards_us(shot, source)
+    request_kwargs = dict(
         source_in_us=_us(shot.get("source_start")),
         source_out_us=_us(shot.get("source_end"), _number(shot.get("source_start"))),
         audio_duration_us=int(audio_duration_us or 0),
         tail_pad_us=_us(source.get("tail_pad_s"), NARRATION_TAIL_PAD),
-        head_guard_us=_us(source.get("head_trim_s"), DEFAULT_HEAD_TRIM_S),
-        tail_guard_us=_us(source.get("tail_trim_s"), DEFAULT_TAIL_TRIM_S),
+        head_guard_us=head_guard_us, tail_guard_us=tail_guard_us,
         evidence_start_us=_us(evidence_start), evidence_end_us=_us(evidence_end),
         speed_min=speed_min, speed_max=speed_max,
         video_duration_us=int(round(material_us)),
-        fps=(frm or timing_contract.DEFAULT_FPS)))
+        fps=(frm or timing_contract.DEFAULT_FPS),
+    )
+    solution = timing_contract.solve_window(timing_contract.WindowRequest(**request_kwargs))
+    if solution.ok:
+        solution.detail.update(
+            head_guard_us=int(request_kwargs["head_guard_us"]),
+            tail_guard_us=int(request_kwargs["tail_guard_us"]),
+            guard_policy="configured_or_measured",
+        )
+        return solution
+    if solution.reason != timing_contract.REASON_SOURCE_TOO_SHORT:
+        return solution
+
+    # Restore the 1.4.1 guarded retry only for fully analyzed clips whose
+    # evidence is at least one frame from both ends and whose physical source
+    # capacity can hold the requested narration.  This does not relax the
+    # evidence boundary or permit a shorter, fabricated segment.
+    fps = frm or timing_contract.DEFAULT_FPS
+    frame_guard_us = timing_contract.frame_us(fps)
+    source_in_us = int(request_kwargs["source_in_us"])
+    source_out_us = int(request_kwargs["source_out_us"])
+    timeline_us = timing_contract.WindowRequest(**request_kwargs).timeline_us
+    # A default trim may be relaxed for a short analyzed clip; measured waste
+    # is an observed unsafe region and must never be discarded by the retry.
+    retry_head_us = (max(frame_guard_us, head_guard_us)
+                     if _number(shot.get("head_waste")) > 0 else frame_guard_us)
+    retry_tail_us = (max(frame_guard_us, tail_guard_us)
+                     if _number(shot.get("tail_waste")) > 0 else frame_guard_us)
+    evidence_safe = (
+        evidence_start is not None and evidence_end is not None
+        and _us(evidence_start) >= source_in_us + retry_head_us
+        and _us(evidence_end) <= source_out_us - retry_tail_us
+    )
+    capacity_safe = source_out_us - source_in_us - retry_head_us - retry_tail_us >= timeline_us
+    analyzed = str(shot.get("status") or "").strip().lower() in {
+        "ready_for_matching", "analyzed", "ok"
+    } or bool(shot.get("frame_exists"))
+    if not (analyzed and evidence_safe and capacity_safe):
+        return solution
+
+    retry_kwargs = dict(request_kwargs)
+    retry_kwargs["head_guard_us"] = retry_head_us
+    retry_kwargs["tail_guard_us"] = retry_tail_us
+    retry = timing_contract.solve_window(timing_contract.WindowRequest(**retry_kwargs))
+    if retry.ok:
+        retry.detail["guard_policy"] = "short_clip_frame_guard"
+        retry.detail["guard_us"] = frame_guard_us
+        retry.detail["head_guard_us"] = retry_head_us
+        retry.detail["tail_guard_us"] = retry_tail_us
+        retry.detail["guard_fallback_from"] = {
+            "head_guard_us": request_kwargs["head_guard_us"],
+            "tail_guard_us": request_kwargs["tail_guard_us"],
+        }
+        return retry
+    return solution
+
+
+def guard_seconds_for_solution(shot: dict[str, Any], manifest: dict[str, Any],
+                              solution: timing_contract.WindowSolution) -> tuple[float, float]:
+    """Carry the planner's exact guards into the draft writer contract."""
+    detail = solution.detail or {}
+    head = (int(detail["head_guard_us"]) / timing_contract.US
+            if "head_guard_us" in detail else
+            _number(shot.get("head_waste"), _number(manifest.get("head_trim_s"), 0.3)))
+    tail = (int(detail["tail_guard_us"]) / timing_contract.US
+            if "tail_guard_us" in detail else
+            _number(shot.get("tail_waste"), _number(manifest.get("tail_trim_s"), 0.2)))
+    return head, tail
 
 
 def span_segment_for(shot: dict[str, Any], *, manifest: dict[str, Any] | None = None,
@@ -186,6 +263,7 @@ def span_segment_for(shot: dict[str, Any], *, manifest: dict[str, Any] | None = 
     那等于绕开用户定案第 5/6 条。所以保护区、变速范围、证据区间全部走同样的取值。
     """
     source = manifest or {}
+    head_guard_us, tail_guard_us = _shot_guards_us(shot, source)
     evidence_start, evidence_end, _frame = candidate_evidence_interval(shot)
     speed_min, speed_max = timing_contract.speed_range_for_role(
         demo_actions.visual_role(shot), time_sensitive=time_sensitive)
@@ -193,8 +271,7 @@ def span_segment_for(shot: dict[str, Any], *, manifest: dict[str, Any] | None = 
     return timing_contract.SpanSegment(
         source_in_us=_us(shot.get("source_start")),
         source_out_us=_us(shot.get("source_end"), _number(shot.get("source_start"))),
-        head_guard_us=_us(source.get("head_trim_s"), DEFAULT_HEAD_TRIM_S),
-        tail_guard_us=_us(source.get("tail_trim_s"), DEFAULT_TAIL_TRIM_S),
+        head_guard_us=head_guard_us, tail_guard_us=tail_guard_us,
         transition_in_handle_us=int(handles[0]), transition_out_handle_us=int(handles[1]),
         evidence_start_us=_us(evidence_start), evidence_end_us=_us(evidence_end),
         speed_min=speed_min, speed_max=speed_max,
@@ -724,6 +801,8 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
                 if isinstance(row, dict) and str(row.get("shot_id", "")).strip()
             }
     max_source_reuse = max(1, int(manifest.get("max_source_reuse", 2) or 2))
+    ending_cta_product_display_fallback = bool(
+        manifest.get("allow_ending_cta_product_display_fallback", False))
     avoid_adjacent_source_repeat = bool(manifest.get("avoid_adjacent_source_repeat", True))
     sentence_rows = _sentences(manifest)
     # Reserve direct candidates before the sequential allocator starts.  Without
@@ -1021,6 +1100,7 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
         multi_shot = False
         degraded_fallback: dict[str, Any] | None = None
         unmatched_fallback = False
+        cta_product_display_fallback = False
         # 预览模式（定案第 9 条）：这一句的真实音频时长在所有候选里都无解，
         # 但预览稿仍然采用语义最合适的那一条让画面出得来。**这不是降级采用**
         # （不是「语义不够只能将就」），是「长度暂时算不出来先摆上」——
@@ -1274,7 +1354,64 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
             if future_reserved:
                 fallback_pool = [row for row in fallback_pool
                                  if row["shot_id"] not in future_reserved]
-            eligible_good = max(fallback_pool, key=_priority, default=None)
+
+            # Explicit preview-only exception for a final CTA with no eligible
+            # quantity shot. The selected display remains degraded and cannot
+            # certify or satisfy a formal delivery gate.
+            if (ending_cta_product_display_fallback and preview_mode
+                    and index == len(sentence_rows) and "cta" in intents
+                    and (not fallback_pool
+                         or not any(_priority(row)[0] for row in fallback_pool))):
+                def _cta_display_candidate(row: dict[str, Any]) -> bool:
+                    shot = row["shot"]
+                    if demo_actions.is_empty_shot(shot) or demo_actions.is_visual_metaphor(shot):
+                        return False
+                    role = demo_actions.visual_role(shot)
+                    if role == "direct_evidence":
+                        return False
+                    audited = (shot.get("frame_exists") is True
+                               or str(shot.get("status") or "").lower()
+                               in {"ready_for_matching", "analyzed", "ok"})
+                    if not audited:
+                        return False
+                    observed = " ".join(
+                        str(shot.get(field) or "")
+                        for field in ("description", "visual_description", "visual_tags",
+                                      "evidence_tags", "action", "result")
+                    )
+                    return bool(
+                        role in ("product_display", "context", "CTA", "usage_demo")
+                        or any(marker in observed for marker in ("包装", "产品", "成排", "多包"))
+                    )
+
+                cta_fallback_pool = [
+                    row for row in ranked
+                    if _cta_display_candidate(row)
+                    and row.get("window_ok")
+                    and row["shot_id"] not in used_shot_ids
+                    and row["shot_id"] not in future_reserved
+                    and source_use_counts.get(row["source_video"], 0) < max_source_reuse
+                    and (not previous_source or row["source_video"] != previous_source)
+                ]
+                if cta_fallback_pool:
+                    cta_fallback_pool.sort(key=lambda row: (
+                        int(demo_actions.cta_quantity_eligible(row["shot"], "优惠囤货")[0]),
+                        int(demo_actions.visual_role(row["shot"])
+                            in ("product_display", "context", "CTA")),
+                        int("成排" in " ".join(str(row["shot"].get(field) or "")
+                                                for field in ("description", "visual_description", "visual_tags"))),
+                        int(row.get("score", 0)), str(row.get("shot_id") or ""),
+                    ), reverse=True)
+                    eligible_good = cta_fallback_pool[0]
+                    eligible_good["eligible"] = True
+                    eligible_good["cta_product_display_fallback"] = True
+                    eligible_good["fallback_reason"] = "CTA_PRODUCT_DISPLAY_DEGRADED_NO_QUANTITY"
+                    eligible_good["cta_visual_ok"] = False
+                    eligible_good["cta_visual_reason"] = "CTA_PRODUCT_DISPLAY_FALLBACK_NO_QUANTITY"
+                    cta_product_display_fallback = True
+                    unmatched_fallback = True
+            if eligible_good is None:
+                eligible_good = max(fallback_pool, key=_priority, default=None)
             if eligible_good is not None and not eligible_good["window_ok"]:
                 detail = eligible_good["window"].detail or {}
                 if preview_mode:
@@ -1317,6 +1454,8 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
         # 只要不是「语义达标 + 窗口有解」这个理想组合，就在报告里留痕：
         # 人工复核要能一眼看出这一句是靠什么过的、哪里将就了。
         window_solution = eligible_good["window"]
+        head_waste_s, tail_waste_s = guard_seconds_for_solution(
+            eligible_good["shot"], manifest, window_solution)
         if degraded_fallback is None and not preview_unresolved:
             tier_rank, tier_basis = _tier(eligible_good)
             # 兜底即使语义分数达标，也不是直接证据通过：它是因为 claim
@@ -1492,10 +1631,12 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
             # 「未经分析」的画面上去（v1.3.24 用户定案）。
             "scene_source_start": selected.get("source_start"),
             "scene_source_end": selected.get("source_end"),
-            "head_waste": selected.get("head_waste", 0.0), "tail_waste": selected.get("tail_waste", 0.0),
+            "head_waste": head_waste_s, "tail_waste": tail_waste_s,
             "temporary_shot_id": selected_id, "persist_to_library": False,
-            "selection_mode": (f"auto_top1_degraded_{(degraded_fallback or {}).get('match_tier', 'none')}"
-                               if degraded_fallback else "auto_top1_with_reuse_guard"),
+            "selection_mode": ("cta_product_display_degraded" if cta_product_display_fallback else
+                               (f"auto_top1_degraded_{(degraded_fallback or {}).get('match_tier', 'none')}"
+                                if degraded_fallback else "auto_top1_with_reuse_guard")),
+            "cta_product_display_fallback": cta_product_display_fallback,
             "degraded_no_match": bool(degraded_fallback), "selection_score": selected_top["score"],
             "selection_margin": margin,
             "source_reuse_count": source_use_counts[selected_source],
@@ -1563,7 +1704,7 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
     # 回给引擎的是 `matched["manifest"]`）。此前只挂在上面的 result 上，
     # 于是「本批闸门未认证」这条状态在报告里看得见、在引擎里看不见，
     # 成片也就从来没带过 UNCERTIFIED 标注 —— 报告和交付物对不上。
-    gate_coverage = demo_actions.gate_coverage(shots)
+    gate_coverage = demo_actions.gate_coverage(shots, segments)
     output_manifest = dict(manifest)
     output_manifest["segments"] = segments
     output_manifest["temporary_material_analysis"] = True
@@ -1581,6 +1722,8 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
         },
         "degraded_never_steals_direct": True,
         "cta_quantity_gate": "multi_pack_or_visible_quantity_required",
+        "ending_cta_product_display_fallback": ending_cta_product_display_fallback,
+        "ending_cta_product_display_fallback_preview_only": True,
         "max_final_materials": max_final_materials,
         "selected_material_count": selected_material_count,
         "intentional_gap_count": sum(1 for item in segments if item.get("visual_missing")),
@@ -1609,6 +1752,8 @@ def match_manifest(manifest: dict[str, Any], analysis: dict[str, Any], *, topk: 
               "degraded_count": len(degraded_matches),
               "degraded_fallback_count": sum(
                   1 for item in degraded_matches if item.get("unmatched_fallback")),
+              "cta_product_display_fallback_count": sum(
+                  1 for item in segments if item.get("cta_product_display_fallback")),
               # DEMO_ACTIONS V0.2 §7（用户定案）：无合格动作的句子必须报缺口，
               # 禁止回退到包装展示或空镜。缺口不静默 —— 落盘 + 交付前可见。
               "material_gaps": material_gaps,

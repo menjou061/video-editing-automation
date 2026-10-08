@@ -1,13 +1,37 @@
-# Runtime environment contract
+# Windows runtime environment contract
+
+The v1.5.0 production worker and queue run on the Windows rendering machine.
+This source ZIP is not a macOS or Linux deployment package; Linux is
+unsupported. Deploy and configure the worker only in the Windows environment
+that has access to the Windows Jianying installation, source materials, draft
+root, and required services.
+
+The `JY_MAC_DRAFT_ROOT` and `JY_MAC_REVIEW_STAGE` settings below describe the
+separate human-review handoff: the first is the reviewer's Mac-side path and the
+second is the corresponding Windows-accessible staging path. They do not move
+the worker or production queue to macOS. A reviewed draft must still pass the
+configured human-acceptance gate before distribution.
 
 The release has no embedded credentials or host paths. A deployment may set:
 
 | Variable | Purpose |
 | --- | --- |
-| `JY_PIPE_ROOT` | pipeline working root |
-| `JY_WORK_ROOT` | task work directory |
+| `JY_PIPE_ROOT` | deployed package/code root; Python tools and policies resolve from here |
+| `JY_WORK_ROOT` | task work directory, shared by JyPoll, JyRun, and the Python worker |
+| `JY_STATE_ROOT` | JyPoll/JyRun lock and processed-state directory |
+| `JY_LOG_ROOT` | JyPoll/JyRun log directory |
+| `JY_CONFIG_ROOT` | external machine configuration directory; defaults to `<JY_PIPE_ROOT>\config` |
+| `JY_ENV_CONFIG_PATH` | optional external JSON profile with an `environment` object of `JY_*` and `LARK_*` settings |
+| `JY_NAS_SECRET_FILE` | optional path to the Windows CurrentUser-DPAPI encrypted NAS password |
 | `JY_SKILL_ROOT` | deployed orchestrator/editor skill root |
 | `JY_DRAFT_ROOT` | local Jianying drafts root |
+| `JY_DRAFT_QC_SCRIPT` | optional override of the included `doubao-jianying-orchestrator/orchestrator/draft_visual_qc.py`; an unavailable selected script blocks generation |
+| `JY_FFMPEG` | FFmpeg executable for fresh QC frame extraction; defaults to FFmpeg on PATH |
+| `JY_VISION_PROFILE` | vision-service profile used by both the worker and QC; defaults to `volc` |
+| `JY_VISION_TRANSPORT` | configured vision adapter; the default uses Codex CLI, with existing Anthropic adapter support |
+| `JY_POST_QC_BATCH_CLAIMS` | claims per bounded visual-review batch; defaults to 4 |
+| `JY_POST_QC_TIMEOUT_S` | worker QC time budget in seconds; defaults to 90, with a 30-second minimum |
+| `JY_VOICE_CATALOG_ROOT` | optional externally provisioned voice catalog; only licensed catalogs may be used |
 | `JY_NAS_SHARE` | NAS share used by the distributor |
 | `JY_NAS_USER` | NAS account name |
 | `NAS_PASSWORD` | NAS password, process environment only |
@@ -24,6 +48,24 @@ The release has no embedded credentials or host paths. A deployment may set:
 
 Missing credentials or deployment roots must stop the queue and yield a
 bounded failure; do not add fallbacks containing real host values.
+
+Both scheduled entrypoints load the external runtime profile at process start.
+JyPoll and JyRun must use the same Windows task identity that encrypted
+`nas-password.dpapi`; the password is decrypted into that process only and is
+never written to the ZIP or log. Do not put `NAS_PASSWORD` in `runtime.json`.
+Keep external config ACLs restricted to the renderer service account and
+operators. `JY_PIPE_ROOT` selects code; `JY_WORK_ROOT` selects task data, so
+changing the data root does not redirect policy or tool lookup.
+
+The package includes the project's existing `draft_visual_qc.py` and its
+`vision_analyzer` dependency. The helper performs a separate check after draft
+generation; it does not require a separate installation. Configure FFmpeg and
+the selected vision adapter on Windows. Vision-service authentication stays
+in the deployment environment and is not bundled in this ZIP. Missing frames,
+unavailable vision services, or incomplete judgments cannot produce QC PASS.
+Preview/degraded states remain preview-only even if the later model labels
+their visible frames DIRECT. Package preflight checks package files and the
+Windows host; actual service operation still requires renderer acceptance.
 
 `JY_PRODUCT_IDENTITY_FILE` can bind one confirmed single-SKU source directory
 for all tasks using it; `records` may override an exception:
